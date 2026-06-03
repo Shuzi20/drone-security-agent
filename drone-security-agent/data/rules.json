@@ -1,0 +1,39 @@
+{
+  "rules": [
+    {
+      "rule_id": 1,
+      "name": "Late night activity",
+      "condition": "time between 22:00 and 06:00",
+      "severity": "HIGH",
+      "message": "Activity detected during late night hours"
+    },
+    {
+      "rule_id": 2,
+      "name": "Loitering detected",
+      "condition": "same person at same location for 2+ frames",
+      "severity": "HIGH",
+      "message": "Person loitering at location"
+    },
+    {
+      "rule_id": 3,
+      "name": "Repeated vehicle",
+      "condition": "same vehicle seen 2+ times",
+      "severity": "MEDIUM",
+      "message": "Vehicle returned multiple times today"
+    },
+    {
+      "rule_id": 4,
+      "name": "Gate tampering",
+      "condition": "keywords: attempting, opening, breaking, tampering near gate",
+      "severity": "CRITICAL",
+      "message": "Possible gate breach attempt"
+    },
+    {
+      "rule_id": 5,
+      "name": "Low battery",
+      "condition": "battery below 20",
+      "severity": "LOW",
+      "message": "Drone battery low, return to dock"
+    }
+  ]
+}
