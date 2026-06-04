@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-MODEL = "deepseek-r1-distill-llama-70b"
+MODEL = "qwen/qwen3-32b"
 
 def analyze_frame_with_vlm(frame):
     prompt = f"""You are a vision AI analyzing a drone surveillance frame.

@@ -18,14 +18,6 @@ st.markdown("---")
 
 init_db()
 
-# Sidebar
-st.sidebar.title("Search & Filter")
-search_query = st.sidebar.text_input("Search frames", placeholder="e.g. truck, person, gate")
-filter_alert = st.sidebar.selectbox(
-    "Filter by alert level",
-    ["ALL", "CRITICAL", "HIGH", "MEDIUM", "LOW", "NONE"]
-)
-
 # Load event log
 LOG_FILE = "storage/event_log.json"
 alerts_today = []
@@ -35,9 +27,8 @@ if os.path.exists(LOG_FILE):
     alerts_today = [l for l in logs if l.get("alert")]
 
 # Top metrics
-col1, col2, col3, col4 = st.columns(4)
 all_frames = get_all_frames()
-
+col1, col2, col3, col4 = st.columns(4)
 col1.metric("Total Frames", len(all_frames))
 col2.metric("Alerts Today", len(alerts_today))
 critical = len([f for f in all_frames if f[5] == "CRITICAL"])
@@ -51,12 +42,6 @@ st.markdown("---")
 if alerts_today:
     st.subheader("🚨 Active Alerts")
     for alert in alerts_today:
-        severity_color = {
-            "CRITICAL": "🔴",
-            "HIGH": "🟠",
-            "MEDIUM": "🟡",
-            "LOW": "🟢"
-        }
         with st.expander(f"{alert['time']} — {alert['location']} — {alert['alert']}"):
             st.write(f"**Frame ID:** {alert['frame_id']}")
             st.write(f"**Time:** {alert['time']}")
@@ -66,8 +51,18 @@ if alerts_today:
 
 st.markdown("---")
 
-# Frame index table
+# Frame Index with filters inline
 st.subheader("📋 Frame Index")
+
+# Filters — Frame Index ke saath inline
+fcol1, fcol2 = st.columns([2, 1])
+with fcol1:
+    search_query = st.text_input("🔍 Search frames", placeholder="e.g. truck, person, gate")
+with fcol2:
+    filter_alert = st.selectbox(
+        "Filter by alert level",
+        ["ALL", "CRITICAL", "HIGH", "MEDIUM", "LOW", "NONE"]
+    )
 
 if search_query:
     frames = search_frames(search_query)
@@ -90,6 +85,15 @@ else:
     st.warning("No frames found.")
 
 st.markdown("---")
+
+# Daily Report
+REPORT_FILE = "storage/daily_report.txt"
+if os.path.exists(REPORT_FILE):
+    st.subheader("📊 Daily Report")
+    with open(REPORT_FILE) as f:
+        report = f.read()
+    st.markdown(report)
+    st.markdown("---")
 
 # Q&A section
 st.subheader("💬 Ask the Agent")

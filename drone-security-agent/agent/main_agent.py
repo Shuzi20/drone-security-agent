@@ -1,22 +1,23 @@
 import json
+import os
 from groq import Groq
 from agent.alert_engine import check_alerts
 from agent.context_manager import ContextManager
+from agent.risk_scorer import calculate_risk_score
+from agent.summarizer import generate_daily_summary
 from storage.db_handler import init_db, insert_frame, search_frames
 from storage.event_logger import log_event
 from storage.vector_store import add_frame, semantic_search
 from dotenv import load_dotenv
-import os
 
 load_dotenv()
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-MODEL = "llama-3.3-70b-versatile"
+MODEL = "qwen/qwen3-32b"
 context = ContextManager()
 
 def analyze_frame(frame, telemetry):
     history_summary = context.get_history_summary()
-    false_positive_warning = context.get_false_positives()
 
     prompt = f"""You are a drone security analyst AI. Analyze this surveillance frame and provide:
 1. Objects detected (people, vehicles, etc.)
@@ -26,14 +27,12 @@ def analyze_frame(frame, telemetry):
 Recent history:
 {history_summary}
 
-{false_positive_warning}
-
 Current frame:
 - Frame ID   : {frame['frame_id']}
 - Time       : {frame['time']}
 - Location   : {frame['location']}
 - Description: {frame['description']}
-- Telemetry  : Battery {telemetry['battery']}%, Altitude {telemetry['altitude']}m
+- Telemetry  : Battery {telemetry.get('battery', 'N/A')}%, Altitude {telemetry.get('altitude', 'N/A')}m
 
 Respond in this exact format:
 OBJECTS: <comma separated list>
@@ -50,6 +49,9 @@ THREAT: <NONE/LOW/MEDIUM/HIGH/CRITICAL>
     return response.choices[0].message.content
 
 def parse_llm_response(response_text):
+    if "<think>" in response_text:
+        response_text = response_text.split("</think>")[-1].strip()
+
     objects = ""
     summary = ""
     threat = "NONE"
@@ -70,16 +72,25 @@ def process_frame(frame, telemetry):
     # Step 1 — LLM analysis
     llm_response = analyze_frame(frame, telemetry)
     objects, summary, threat = parse_llm_response(llm_response)
-    print(f"[LLM]   Objects: {objects}")
-    print(f"[LLM]   Summary: {summary}")
-    print(f"[LLM]   Threat : {threat}")
+    print(f"[LLM]   Objects : {objects}")
+    print(f"[LLM]   Summary : {summary}")
+    print(f"[LLM]   Threat  : {threat}")
 
     # Step 2 — Rule-based alerts
     alerts = check_alerts(frame, telemetry, context.frame_history)
     for alert in alerts:
         print(f"[ALERT] {alert['severity']} — {alert['message']}")
 
-    # Step 3 — Store in SQLite
+    # Step 3 — Risk Score
+    risk_score, risk_reasons = calculate_risk_score(frame, telemetry, alerts)
+    print(f"[RISK]  Frame {frame['frame_id']} | Score: {risk_score}/100 | Reason: {risk_reasons}")
+
+    # Step 4 — Pattern Detection
+    patterns = context.get_patterns()
+    for pattern in patterns:
+        print(pattern)
+
+    # Step 5 — Store in SQLite
     insert_frame(
         frame_id=frame["frame_id"],
         time=frame["time"],
@@ -89,26 +100,26 @@ def process_frame(frame, telemetry):
         alert_level=threat
     )
 
-    # Step 4 — Store in ChromaDB
+    # Step 6 — Store in ChromaDB
     add_frame(
         frame_id=frame["frame_id"],
         description=frame["description"],
         metadata={
             "time": frame["time"],
             "location": frame["location"],
-            "threat": threat
+            "threat": threat,
+            "risk_score": str(risk_score)
         }
     )
 
-    # Step 5 — Log event
+    # Step 7 — Log event
     alert_msg = alerts[0]["message"] if alerts else None
     log_event(frame["frame_id"], frame["time"], frame["location"], summary, alert=alert_msg)
 
-    # Step 6 — Update context memory
+    # Step 8 — Update context memory
     context.add_frame(frame)
     for alert in alerts:
         context.add_alert(alert)
-
 
 def run_agent():
     print("\n" + "="*60)
@@ -128,13 +139,30 @@ def run_agent():
         telemetry = telemetry_map.get(frame["time"], {})
         process_frame(frame, telemetry)
 
+    # Daily Summary + Video Summary
     print("\n" + "="*60)
-    print("   ALL FRAMES PROCESSED")
+    print("   ALL FRAMES PROCESSED — GENERATING REPORT")
     print("="*60)
 
-    # Bonus — Q&A session
-    print("\nQ&A Mode — Ask anything about today's surveillance.")
-    print("Type 'exit' to quit.\n")
+    patterns = context.get_patterns()
+    report = generate_daily_summary(
+        context.frame_history,
+        context.alert_history,
+        patterns
+    )
+    print("\n" + report)
+
+    # Save report to file
+    with open("storage/daily_report.txt", "w") as f:
+        f.write(report)
+    print("\n[REPORT] Saved to storage/daily_report.txt")
+
+    # Q&A session
+    print("\n" + "="*60)
+    print("Q&A Mode — Ask anything about today's surveillance.")
+    print("Type 'exit' to quit.")
+    print("="*60 + "\n")
+
     while True:
         query = input("Your question: ").strip()
         if query.lower() == "exit":
@@ -148,7 +176,10 @@ def run_agent():
                 "content": f"Based on today's surveillance data:\n{context_text}\n\nAnswer this question: {query}"
             }]
         )
-        print(f"\n[AGENT] {response.choices[0].message.content}\n")
+        result = response.choices[0].message.content
+        if "<think>" in result:
+            result = result.split("</think>")[-1].strip()
+        print(f"\n[AGENT] {result}\n")
 
 if __name__ == "__main__":
     run_agent()
