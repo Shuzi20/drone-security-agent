@@ -103,6 +103,7 @@ The Drone Security Analyst Agent is designed for a docked drone that monitors a 
 
 ## Project Structure
 
+```
 drone-security-agent/
 |
 |-- data/
@@ -139,7 +140,8 @@ drone-security-agent/
 |-- .env                         # API keys (not committed)
 |-- .gitignore
 |-- README.md
-
+...
+```
 ---
 
 ## Setup Instructions
