@@ -49,7 +49,7 @@ The Drone Security Analyst Agent is designed for a docked drone that monitors a 
 
 **Bonus Features**
 
-- Video summarization — 2-3 sentence natural language summary of the day
+- Text summarization — 2-3 sentence natural language summary of the day
 - Follow-up Q&A — agent answers questions about today's activity
 
 ---

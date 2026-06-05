@@ -139,7 +139,7 @@ def run_agent():
         telemetry = telemetry_map.get(frame["time"], {})
         process_frame(frame, telemetry)
 
-    # Daily Summary + Video Summary
+    # Daily Summary + Text Summary
     print("\n" + "="*60)
     print("   ALL FRAMES PROCESSED — GENERATING REPORT")
     print("="*60)
