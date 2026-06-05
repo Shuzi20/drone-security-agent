@@ -62,8 +62,10 @@ def test_context_history_max_five_frames():
     for i in range(7):
         ctx.add_frame({"frame_id": i, "time": "00:01", "location": "Gate", "description": f"Frame {i}"})
     summary = ctx.get_history_summary()
-    # Only last 5 frames shown
-    assert "Frame 2" not in summary
+    # Last 5 frames hain: 2, 3, 4, 5, 6
+    # Frame 0 aur Frame 1 nahi hone chahiye
+    assert "Frame 0" not in summary
+    assert "Frame 1" not in summary
     assert "Frame 6" in summary
     print("PASS — test_context_history_max_five_frames")
 
